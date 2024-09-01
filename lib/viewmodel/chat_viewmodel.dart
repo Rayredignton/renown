@@ -16,7 +16,7 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   // Fetch messages from Firestore and offline storage
-  Future<void> fetchMessages(String userId1, String userId2)async {
+  Future<void> fetchMessages(String userId1, String userId2) async {
     final connectivityResult = await Connectivity().checkConnectivity();
 
     if (connectivityResult == ConnectivityResult.none) {
@@ -31,18 +31,39 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   // Fetch messages from Firestore
- Future<void> _fetchMessagesFromFirestore(String userId1, String userId2) async {
+  Future<void> _fetchMessagesFromFirestore(String userId1, String userId2) async {
     try {
-      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+      // Fetch messages where userId1 is the sender and userId2 is the receiver
+      final QuerySnapshot senderSnapshot = await _firestore
           .collection('messages')
-          .where('senderId', whereIn: [userId1, userId2])
-          .where('receiverId', whereIn: [userId1, userId2])
+          .where('senderId', isEqualTo: userId1)
+          .where('receiverId', isEqualTo: userId2)
           .orderBy('timestamp', descending: true)
           .get();
 
-      _messages = snapshot.docs
-          .map((doc) => Message.fromMap(doc.data() as Map<String, dynamic>))
-          .toList();
+      // Fetch messages where userId2 is the sender and userId1 is the receiver
+      final QuerySnapshot receiverSnapshot = await _firestore
+          .collection('messages')
+          .where('senderId', isEqualTo: userId2)
+          .where('receiverId', isEqualTo: userId1)
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      // Combine the messages from both queries, ensuring uniqueness
+      final Set<Message> uniqueMessages = {};
+
+      senderSnapshot.docs.forEach((doc) {
+        uniqueMessages.add(Message.fromMap(doc.data() as Map<String, dynamic>));
+      });
+
+      receiverSnapshot.docs.forEach((doc) {
+        uniqueMessages.add(Message.fromMap(doc.data() as Map<String, dynamic>));
+      });
+
+      // Convert the set to a list and sort messages by timestamp in descending order
+      _messages = uniqueMessages.toList();
+      _messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      
       notifyListeners();
     } catch (e) {
       print('Error fetching messages from Firestore: $e');

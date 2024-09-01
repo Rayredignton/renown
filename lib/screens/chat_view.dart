@@ -41,7 +41,9 @@ class _ChatViewState extends State<ChatView> {
     chatProvider.fetchMessages(authProvider.user!.uid, widget.receiverId);
 
     return Scaffold(
+       
       appBar: AppBar(
+        backgroundColor: Colors.blue,
         title: Text('Chat with ${widget.receiverName}'), // Show the receiver's name
         actions: [
           IconButton(
